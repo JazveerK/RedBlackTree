@@ -19,24 +19,31 @@ using namespace std;
 void rotateLeft(Node*& node);
 void rotateRight(Node*& node);
 void add(int value);
+void remove(int value);
 void fixTree(Node*& node);
 void read(const char* filename);
 void printFormat(Node* head, int space);
+bool search(int value);
+Node* findMin(Node* node);
+void replaceNode(Node*& oldNode, Node*& newNode);
+void fixDoubleBlack(Node*& node);
+Node* getSibling(Node* node);
+bool isLeftChild(Node* node);
+bool hasRedChild(Node* node);
 
 Node* root = nullptr;
 
 int main() {
     bool running = true;
     char command[50];
-    
+
     cout << "Welcome to RedBlackTree" << endl; //This is hell
 
     while (running) {
         cout << endl;
-        cout << "Please enter a command: ADD, READ, PRINT, QUIT" << endl;
+        cout << "Please enter a command: ADD, READ, PRINT, DELETE, SEARCH, QUIT" << endl;
         cin.get(command, 50);
         cin.get();
-
 
         if (strcmp(command, "ADD") == 0) {
             int value;
@@ -45,7 +52,7 @@ int main() {
             cin.get();
             add(value);
         }
-        
+
         else if (strcmp(command, "READ") == 0) {
             char filename[50];
             cout << "Enter the filename: ";
@@ -53,18 +60,39 @@ int main() {
             cin.get();
             read(filename);
         }
-        
+
         else if (strcmp(command, "PRINT") == 0) {
             printFormat(root, 0);
         }
-        
+
+        else if (strcmp(command, "DELETE") == 0) {
+            int value;
+            cout << "Enter the value to delete: ";
+            cin >> value;
+            cin.get();
+            remove(value);
+        }
+
+        else if (strcmp(command, "SEARCH") == 0) {
+            int value;
+            cout << "Enter the value to search for: ";
+            cin >> value;
+            cin.get();
+            bool found = search(value);
+            if (found) {
+                cout << "Value " << value << " found in the tree." << endl;
+            } else {
+                cout << "Value " << value << " not found in the tree." << endl;
+            }
+        }
+
         else if (strcmp(command, "QUIT") == 0) {
             cout << "Exiting the program..." << endl;
             running = false;
         }
     }
 
-    deleteNode(root); //clears up some sotrage
+    deleteNode(root); //clears up some storage
 
     return 0;
 }
@@ -126,8 +154,7 @@ void fixTree(Node*& node) {
                 parent->color = false;
                 uncle->color = false;
                 node = grandparent;
-            }
-            else {
+            } else {
                 if (node == parent->right) {
                     rotateLeft(parent);
                     node = parent;
@@ -149,8 +176,7 @@ void fixTree(Node*& node) {
                 parent->color = false;
                 uncle->color = false;
                 node = grandparent;
-            }
-            else {
+            } else {
                 if (node == parent->left) {
                     rotateRight(parent);
                     node = parent;
@@ -189,7 +215,6 @@ void add(int value) {
             node = node->left;
         else if (value > node->data)
             node = node->right;
-        
         //Handles duplicate values
         else {
             free(newNode);
@@ -205,6 +230,169 @@ void add(int value) {
         parent->right = newNode;
 
     fixTree(newNode);
+}
+
+//Keep getting seg faults
+void remove(int value) {
+    Node* node = root;
+    Node* parent = nullptr;
+
+    while (node != nullptr) {
+        if (value == node->data) {
+            break;
+        } else if (value < node->data) {
+            parent = node;
+            node = node->left;
+        } else {
+            parent = node;
+            node = node->right;
+        }
+    }
+
+    if (node == nullptr) {
+        return;
+    }
+
+    if (node->left == nullptr || node->right == nullptr) {
+        Node* child = node->left ? node->left : node->right;
+
+        if (parent == nullptr) {
+            root = child;
+        } else if (node == parent->left) {
+            parent->left = child;
+        } else {
+            parent->right = child;
+        }
+
+        if (child != nullptr) {
+            child->parent = parent;
+        }
+
+        if (node->color == false) {
+            fixDoubleBlack(child);
+        }
+
+        free(node);
+    } else {
+        Node* successor = findMin(node->right);
+        int successorValue = successor->data;
+        remove(successorValue);
+        node->data = successorValue;
+    }
+}
+
+Node* findMin(Node* node) {
+    while (node->left != nullptr) {
+        node = node->left;
+    }
+    return node;
+}
+
+void replaceNode(Node*& oldNode, Node*& newNode) {
+    if (oldNode->parent == nullptr) {
+        root = newNode;
+    } else if (oldNode == oldNode->parent->left) {
+        oldNode->parent->left = newNode;
+    } else {
+        oldNode->parent->right = newNode;
+    }
+
+    if (newNode != nullptr) {
+        newNode->parent = oldNode->parent;
+    }
+}
+
+void fixDoubleBlack(Node*& node) {
+    if (node == root) {
+        return;
+    }
+
+    Node* sibling = getSibling(node);
+    Node* parent = node->parent;
+
+    if (sibling == nullptr) {
+        fixDoubleBlack(parent);
+    } else {
+        if (sibling->color == true) {
+            parent->color = true;
+            sibling->color = false;
+            if (isLeftChild(sibling)) {
+                rotateRight(parent);
+            } else {
+                rotateLeft(parent);
+            }
+            fixDoubleBlack(node);
+        } else {
+            if (hasRedChild(sibling)) {
+                if (sibling->left != nullptr && sibling->left->color == true) {
+                    if (isLeftChild(sibling)) {
+                        sibling->left->color = sibling->color;
+                        sibling->color = parent->color;
+                        rotateRight(parent);
+                    } else {
+                        sibling->left->color = parent->color;
+                        rotateRight(sibling);
+                        rotateLeft(parent);
+                    }
+                } else {
+                    if (isLeftChild(sibling)) {
+                        sibling->right->color = parent->color;
+                        rotateLeft(sibling);
+                        rotateRight(parent);
+                    } else {
+                        sibling->right->color = sibling->color;
+                        sibling->color = parent->color;
+                        rotateLeft(parent);
+                    }
+                }
+                parent->color = false;
+            } else {
+                sibling->color = true;
+                if (parent->color == false) {
+                    fixDoubleBlack(parent);
+                } else {
+                    parent->color = false;
+                }
+            }
+        }
+    }
+}
+
+Node* getSibling(Node* node) {
+    if (node->parent == nullptr) {
+        return nullptr;
+    }
+
+    if (isLeftChild(node)) {
+        return node->parent->right;
+    } else {
+        return node->parent->left;
+    }
+}
+
+bool isLeftChild(Node* node) {
+    return node == node->parent->left;
+}
+
+bool hasRedChild(Node* node) {
+    return (node->left != nullptr && node->left->color == true) ||
+           (node->right != nullptr && node->right->color == true);
+}
+
+bool search(int value) {
+    Node* node = root;
+
+    while (node != nullptr) {
+        if (value == node->data) {
+            return true;
+        } else if (value < node->data) {
+            node = node->left;
+        } else {
+            node = node->right;
+        }
+    }
+
+    return false;
 }
 
 //randomly doesn't work
