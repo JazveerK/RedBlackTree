@@ -7,6 +7,10 @@
  https://www.codesdope.com/course/data-structures-red-black-trees-insertion/
  https://stackoverflow.com/questions/74105624/is-it-possible-to-avoid-duplicate-values-from-being-inserted-in-a-red-black-tree (SJ HOWE)
  https://www.youtube.com/watch?v=IuG3WSaDumc (watched a lot of his videos)
+ 
+ TROUBLESHOOTING
+ https://www.geeksforgeeks.org/deletion-in-red-black-tree/
+ https://stackoverflow.com/questions/70249620/segmentation-fault-red-black-trees
  */
 
 #include <iostream>
@@ -15,7 +19,7 @@
 
 using namespace std;
 
-//Function Prototypes
+// Function Prototypes
 void rotateLeft(Node*& node);
 void rotateRight(Node*& node);
 void add(int value);
@@ -30,6 +34,7 @@ void fixDoubleBlack(Node*& node);
 Node* getSibling(Node* node);
 bool isLeftChild(Node* node);
 bool hasRedChild(Node* node);
+void deleteNode(Node* node);
 
 Node* root = nullptr;
 
@@ -37,7 +42,7 @@ int main() {
     bool running = true;
     char command[50];
 
-    cout << "Welcome to RedBlackTree" << endl; //This is hell
+    cout << "Welcome to RedBlackTree" << endl; // This is hell
 
     while (running) {
         cout << endl;
@@ -52,7 +57,6 @@ int main() {
             cin.get();
             add(value);
         }
-
         else if (strcmp(command, "READ") == 0) {
             char filename[50];
             cout << "Enter the filename: ";
@@ -60,11 +64,9 @@ int main() {
             cin.get();
             read(filename);
         }
-
         else if (strcmp(command, "PRINT") == 0) {
             printFormat(root, 0);
         }
-
         else if (strcmp(command, "DELETE") == 0) {
             int value;
             cout << "Enter the value to delete: ";
@@ -72,7 +74,6 @@ int main() {
             cin.get();
             remove(value);
         }
-
         else if (strcmp(command, "SEARCH") == 0) {
             int value;
             cout << "Enter the value to search for: ";
@@ -85,7 +86,6 @@ int main() {
                 cout << "Value " << value << " not found in the tree." << endl;
             }
         }
-
         else if (strcmp(command, "QUIT") == 0) {
             cout << "Exiting the program..." << endl;
             running = false;
@@ -137,16 +137,16 @@ void rotateRight(Node*& node) {
     node->parent = leftChild;
 }
 
-//Fix the RedBlackTree
+//Fix the RBT
 void fixTree(Node*& node) {
     Node* parent = nullptr;
     Node* grandparent = nullptr;
 
-    while (node != root && (node->color == true && (node->parent && node->parent->color == true))) {
+    while (node != root && node->color == true && node->parent && node->parent->color == true) {
         parent = node->parent;
         grandparent = parent->parent;
 
-        //Case 1: Parent is the left child of the grandparent
+        // Case 1: Parent is the left child of the grandparent
         if (parent == grandparent->left) {
             Node* uncle = grandparent->right;
             if (uncle && uncle->color == true) {
@@ -160,7 +160,6 @@ void fixTree(Node*& node) {
                     node = parent;
                     parent = node->parent;
                 }
-
                 rotateRight(grandparent);
                 bool temp = parent->color;
                 parent->color = grandparent->color;
@@ -168,7 +167,7 @@ void fixTree(Node*& node) {
                 node = parent;
             }
         }
-        //Case 2: Parent is the right child of the grandparent
+        // Case 2: Parent is the right child of the grandparent
         else {
             Node* uncle = grandparent->left;
             if (uncle && uncle->color == true) {
@@ -182,7 +181,6 @@ void fixTree(Node*& node) {
                     node = parent;
                     parent = node->parent;
                 }
-
                 rotateLeft(grandparent);
                 bool temp = parent->color;
                 parent->color = grandparent->color;
@@ -192,7 +190,7 @@ void fixTree(Node*& node) {
         }
     }
 
-    //root of the tree is always black
+    // Root of the tree is always black
     if (root)
         root->color = false;
 }
@@ -215,7 +213,7 @@ void add(int value) {
             node = node->left;
         else if (value > node->data)
             node = node->right;
-        //Handles duplicate values
+        // Handles duplicate values
         else {
             free(newNode);
             return;
@@ -232,53 +230,66 @@ void add(int value) {
     fixTree(newNode);
 }
 
-//Keep getting seg faults
+// Fixes deletion issues
+
+// deletion & rebalancing not working
+// double black
 void remove(int value) {
     Node* node = root;
-    Node* parent = nullptr;
+    Node* nodeToBeDeleted = nullptr;
+    Node* child = nullptr;
 
+    // Find the node
     while (node != nullptr) {
         if (value == node->data) {
+            nodeToBeDeleted = node;
             break;
         } else if (value < node->data) {
-            parent = node;
             node = node->left;
         } else {
-            parent = node;
             node = node->right;
         }
     }
 
-    if (node == nullptr) {
+    if (nodeToBeDeleted == nullptr) {
         return;
     }
 
-    if (node->left == nullptr || node->right == nullptr) {
-        Node* child = node->left ? node->left : node->right;
+    Node* replacement = nullptr;
 
-        if (parent == nullptr) {
-            root = child;
-        } else if (node == parent->left) {
-            parent->left = child;
-        } else {
-            parent->right = child;
-        }
-
-        if (child != nullptr) {
-            child->parent = parent;
-        }
-
-        if (node->color == false) {
-            fixDoubleBlack(child);
-        }
-
-        free(node);
+    if (nodeToBeDeleted->left == nullptr || nodeToBeDeleted->right == nullptr) {
+        replacement = nodeToBeDeleted;
     } else {
-        Node* successor = findMin(node->right);
-        int successorValue = successor->data;
-        remove(successorValue);
-        node->data = successorValue;
+        replacement = findMin(nodeToBeDeleted->right);
     }
+
+    if (replacement->left != nullptr) {
+        child = replacement->left;
+    } else {
+        child = replacement->right;
+    }
+
+    if (child != nullptr) {
+        child->parent = replacement->parent;
+    }
+
+    if (replacement->parent == nullptr) {
+        root = child;
+    } else if (replacement == replacement->parent->left) {
+        replacement->parent->left = child;
+    } else {
+        replacement->parent->right = child;
+    }
+
+    if (replacement != nodeToBeDeleted) {
+        nodeToBeDeleted->data = replacement->data;
+    }
+
+    if (replacement->color == false && child != nullptr) {
+        fixDoubleBlack(child);
+    }
+
+    free(replacement);
 }
 
 Node* findMin(Node* node) {
@@ -395,7 +406,7 @@ bool search(int value) {
     return false;
 }
 
-//randomly doesn't work
+// Randomly doesn't work
 void read(const char* filename) {
     FILE* file = fopen(filename, "r");
     if (!file) {
