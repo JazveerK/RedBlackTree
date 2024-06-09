@@ -11,9 +11,13 @@
  TROUBLESHOOTING
  https://www.geeksforgeeks.org/deletion-in-red-black-tree/
  https://stackoverflow.com/questions/70249620/segmentation-fault-red-black-trees
+ 
+ Restarted from almost scratch
+ https://en.wikipedia.org/wiki/Red%E2%80%93black_tree#Operations
  */
 
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include "node.h"
 
@@ -25,7 +29,7 @@ void rotateRight(Node*& node);
 void add(int value);
 void remove(int value);
 void fixTree(Node*& node);
-void read(const char* filename);
+void read(const char* filename); 
 void printFormat(Node* head, int space);
 bool search(int value);
 Node* findMin(Node* node);
@@ -34,15 +38,15 @@ void fixDoubleBlack(Node*& node);
 Node* getSibling(Node* node);
 bool isLeftChild(Node* node);
 bool hasRedChild(Node* node);
-void deleteNode(Node* node);
+void deleteTree(Node* node);
 
-Node* root = nullptr;
+Node* root = NULL;
 
 int main() {
     bool running = true;
     char command[50];
 
-    cout << "Welcome to RedBlackTree" << endl; // This is hell
+    cout << "Welcome to RedBlackTree" << endl;
 
     while (running) {
         cout << endl;
@@ -56,46 +60,67 @@ int main() {
             cin >> value;
             cin.get();
             add(value);
-        }
+        } 
+        
         else if (strcmp(command, "READ") == 0) {
             char filename[50];
             cout << "Enter the filename: ";
             cin.get(filename, 50);
             cin.get();
             read(filename);
-        }
+        } 
+        
         else if (strcmp(command, "PRINT") == 0) {
             printFormat(root, 0);
         }
+        
         else if (strcmp(command, "DELETE") == 0) {
             int value;
             cout << "Enter the value to delete: ";
             cin >> value;
             cin.get();
             remove(value);
-        }
+        } 
+        
         else if (strcmp(command, "SEARCH") == 0) {
             int value;
             cout << "Enter the value to search for: ";
             cin >> value;
             cin.get();
             bool found = search(value);
-            if (found) {
+            if (found)
                 cout << "Value " << value << " found in the tree." << endl;
-            } else {
+            else
                 cout << "Value " << value << " not found in the tree." << endl;
-            }
-        }
+            
+        } 
+        
         else if (strcmp(command, "QUIT") == 0) {
             cout << "Exiting the program..." << endl;
             running = false;
         }
     }
 
-    deleteNode(root); //clears up some storage
-
+    deleteTree(root);
     return 0;
 }
+
+// Crashing --> Resolved
+void read(const char* filename) {
+    ifstream file(filename);
+    if (!file) {
+        cout << "Failed to open file" << endl;
+        return;
+    }
+
+    int num;
+    while (file >> num) {
+        add(num);
+    }
+
+    file.close();
+}
+
 
 void rotateLeft(Node*& node) {
     Node* rightChild = node->right;
@@ -137,16 +162,16 @@ void rotateRight(Node*& node) {
     node->parent = leftChild;
 }
 
-//Fix the RBT
+// Fix the RBT
 void fixTree(Node*& node) {
-    Node* parent = nullptr;
-    Node* grandparent = nullptr;
+    Node* parent = NULL;
+    Node* grandparent = NULL;
 
     while (node != root && node->color == true && node->parent && node->parent->color == true) {
         parent = node->parent;
         grandparent = parent->parent;
 
-        // Case 1: Parent is the left child of the grandparent
+        // Case 1 - Parent is the left child of the gp
         if (parent == grandparent->left) {
             Node* uncle = grandparent->right;
             if (uncle && uncle->color == true) {
@@ -167,7 +192,7 @@ void fixTree(Node*& node) {
                 node = parent;
             }
         }
-        // Case 2: Parent is the right child of the grandparent
+        // Case 2: Parent is the right child of the gp
         else {
             Node* uncle = grandparent->left;
             if (uncle && uncle->color == true) {
@@ -205,7 +230,7 @@ void add(int value) {
     }
 
     Node* node = root;
-    Node* parent = nullptr;
+    Node* parent = NULL;
 
     while (node) {
         parent = node;
@@ -213,9 +238,9 @@ void add(int value) {
             node = node->left;
         else if (value > node->data)
             node = node->right;
-        // Handles duplicate values
+        // dupes
         else {
-            free(newNode);
+            delete newNode;
             return;
         }
     }
@@ -230,25 +255,22 @@ void add(int value) {
     fixTree(newNode);
 }
 
-// Fixes deletion issues
-
-// deletion & rebalancing not working
-// double black
 void remove(int value) {
     Node* node = root;
     Node* nodeToBeDeleted = nullptr;
     Node* child = nullptr;
 
-    // Find the node
+    // look for node
     while (node != nullptr) {
         if (value == node->data) {
             nodeToBeDeleted = node;
             break;
-        } else if (value < node->data) {
-            node = node->left;
-        } else {
-            node = node->right;
         }
+        else if (value < node->data)
+            node = node->left;
+        else
+            node = node->right;
+    
     }
 
     if (nodeToBeDeleted == nullptr) {
@@ -289,39 +311,46 @@ void remove(int value) {
         fixDoubleBlack(child);
     }
 
-    free(replacement);
+    delete replacement;
 }
 
+
 Node* findMin(Node* node) {
-    while (node->left != nullptr) {
+    while (node->left != NULL) {
         node = node->left;
     }
     return node;
 }
 
-void replaceNode(Node*& oldNode, Node*& newNode) {
-    if (oldNode->parent == nullptr) {
-        root = newNode;
-    } else if (oldNode == oldNode->parent->left) {
-        oldNode->parent->left = newNode;
-    } else {
-        oldNode->parent->right = newNode;
+Node* getSibling(Node* node) {
+    if (node->parent == NULL) {
+        return NULL;
     }
 
-    if (newNode != nullptr) {
-        newNode->parent = oldNode->parent;
+    if (node == node->parent->left) {
+        return node->parent->right;
+    } else {
+        return node->parent->left;
     }
 }
 
+bool isLeftChild(Node* node) {
+    return node == node->parent->left;
+}
+
+bool hasRedChild(Node* node) {
+    return (node->left && node->left->color == true) || (node->right && node->right->color == true);
+}
+
 void fixDoubleBlack(Node*& node) {
-    if (node == root) {
+    if (node == root)
         return;
-    }
+    
 
     Node* sibling = getSibling(node);
     Node* parent = node->parent;
 
-    if (sibling == nullptr) {
+    if (sibling == NULL) {
         fixDoubleBlack(parent);
     } else {
         if (sibling->color == true) {
@@ -335,7 +364,7 @@ void fixDoubleBlack(Node*& node) {
             fixDoubleBlack(node);
         } else {
             if (hasRedChild(sibling)) {
-                if (sibling->left != nullptr && sibling->left->color == true) {
+                if (sibling->left != NULL && sibling->left->color == true) {
                     if (isLeftChild(sibling)) {
                         sibling->left->color = sibling->color;
                         sibling->color = parent->color;
@@ -369,31 +398,10 @@ void fixDoubleBlack(Node*& node) {
     }
 }
 
-Node* getSibling(Node* node) {
-    if (node->parent == nullptr) {
-        return nullptr;
-    }
-
-    if (isLeftChild(node)) {
-        return node->parent->right;
-    } else {
-        return node->parent->left;
-    }
-}
-
-bool isLeftChild(Node* node) {
-    return node == node->parent->left;
-}
-
-bool hasRedChild(Node* node) {
-    return (node->left != nullptr && node->left->color == true) ||
-           (node->right != nullptr && node->right->color == true);
-}
-
 bool search(int value) {
     Node* node = root;
 
-    while (node != nullptr) {
+    while (node != NULL) {
         if (value == node->data) {
             return true;
         } else if (value < node->data) {
@@ -406,29 +414,13 @@ bool search(int value) {
     return false;
 }
 
-// Randomly doesn't work
-void read(const char* filename) {
-    FILE* file = fopen(filename, "r");
-    if (!file) {
-        cout << "Failed" << endl;
-        return;
-    }
-
-    int num;
-    while (fscanf(file, "%d", &num) != EOF) { //EOF checks if file has been completely read
-        add(num);
-    }
-
-    fclose(file);
-}
-
-// Credit: Jayden Huang
+//Credit: Jayden Huang
 void printFormat(Node* head, int space) {
-    if (head == nullptr) {
+    if (head == nullptr) 
         return;
-    }
+    
 
-    space += 5;
+    space += 10;
 
     if (head->right != nullptr) {
         printFormat(head->right, space);
@@ -447,4 +439,17 @@ void printFormat(Node* head, int space) {
     if (head->left != nullptr) {
         printFormat(head->left, space);
     }
+    
+    // cout << head->data << (head->color ? "R" : "B") << endl;
 }
+
+
+void deleteTree(Node* node) {
+    if (node) {
+        deleteTree(node->left);
+        deleteTree(node->right);
+        delete node;
+    }
+}
+
+
